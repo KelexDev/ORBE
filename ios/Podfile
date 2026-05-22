@@ -17,6 +17,10 @@ end
 target 'Orbe' do
   config = use_native_modules!
 
+  # ✅ AÑADIR ESTO — requerido por react-native-maps con Google Maps
+  pod 'GoogleMaps'
+  pod 'Google-Maps-iOS-Utils'
+
   use_react_native!(
     :path => config[:reactNativePath],
     :app_path => "#{Pod::Config.instance.installation_root}/.."
@@ -29,7 +33,6 @@ target 'Orbe' do
       :mac_catalyst_enabled => false,
     )
 
-    # Fix: non-modular-include-in-framework-module (react-native-screens + New Arch)
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
