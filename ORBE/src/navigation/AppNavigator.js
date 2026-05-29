@@ -1,28 +1,32 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { firebaseAuth, firebaseFirestore, COLLECTIONS } from '../services/firebase';
 import { setUser } from '../store/slices/authSlice';
+import { serializeFirestoreData } from '../utils/formatters';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const AppNavigator = () => {
   const dispatch = useDispatch();
-  const { isAuthenticated, loading } = useSelector((state) => state.auth);
+  const { isAuthenticated } = useSelector((state) => state.auth);
+  // Prevents the login screen from flashing before Firebase resolves the auth state
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const doc = await firestore().collection('users').doc(firebaseUser.uid).get();
+          const profileRef = doc(firebaseFirestore, COLLECTIONS.USERS, firebaseUser.uid);
+          const profileSnap = await getDoc(profileRef);
+          const profile = profileSnap.exists()
+            ? serializeFirestoreData(profileSnap.data())
+            : {};
           dispatch(
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              ...(doc.exists ? doc.data() : {}),
-            }),
+            setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...profile }),
           );
         } catch {
           dispatch(setUser({ uid: firebaseUser.uid, email: firebaseUser.email }));
@@ -30,12 +34,13 @@ const AppNavigator = () => {
       } else {
         dispatch(setUser(null));
       }
+      setInitializing(false);
     });
 
     return unsubscribe;
   }, [dispatch]);
 
-  if (loading) {
+  if (initializing) {
     return <LoadingSpinner fullScreen message="Loading..." />;
   }
 

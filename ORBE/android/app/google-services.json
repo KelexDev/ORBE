@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "714615664680",
+    "project_id": "uberclone-269dd",
+    "storage_bucket": "uberclone-269dd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:714615664680:android:68b696a7125c0ab513051d",
+        "android_client_info": {
+          "package_name": "com.orbe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDfNolkRCAYi7m7WeU4PeZ9aZldoqs6fA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,13 +1,25 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import firestore from '@react-native-firebase/firestore';
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  limit,
+  getDocs,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { firebaseFirestore, COLLECTIONS } from '../../services/firebase';
 
 export const fetchProfile = createAsyncThunk(
   'user/fetchProfile',
   async (uid, { rejectWithValue }) => {
     try {
-      const doc = await firestore().collection('users').doc(uid).get();
-      if (!doc.exists) throw new Error('Profile not found.');
-      return { uid, ...doc.data() };
+      const profileRef = doc(firebaseFirestore, COLLECTIONS.USERS, uid);
+      const profileSnap = await getDoc(profileRef);
+      if (!profileSnap.exists()) throw new Error('Profile not found.');
+      return { uid, ...profileSnap.data() };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -18,9 +30,10 @@ export const updateProfile = createAsyncThunk(
   'user/updateProfile',
   async ({ uid, profileData }, { rejectWithValue }) => {
     try {
-      await firestore().collection('users').doc(uid).update({
+      const profileRef = doc(firebaseFirestore, COLLECTIONS.USERS, uid);
+      await updateDoc(profileRef, {
         ...profileData,
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
       return profileData;
     } catch (error) {
@@ -33,14 +46,22 @@ export const fetchRideHistory = createAsyncThunk(
   'user/fetchRideHistory',
   async (uid, { rejectWithValue }) => {
     try {
-      const snapshot = await firestore()
-        .collection('rides')
-        .where('userId', '==', uid)
-        .where('status', '==', 'completed')
-        .orderBy('createdAt', 'desc')
-        .limit(50)
-        .get();
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      // Single where clause avoids needing a composite Firestore index.
+      // Status filtering and sorting are done client-side.
+      const ridesRef = collection(firebaseFirestore, COLLECTIONS.RIDES);
+      const q = query(ridesRef, where('userId', '==', uid), limit(100));
+      const snapshot = await getDocs(q);
+
+      const rides = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((r) => r.status === 'completed')
+        .sort((a, b) => {
+          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt ?? 0);
+          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt ?? 0);
+          return dateB - dateA;
+        });
+
+      return rides;
     } catch (error) {
       return rejectWithValue(error.message);
     }

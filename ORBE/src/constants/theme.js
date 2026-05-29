@@ -9,6 +9,7 @@ const theme = {
     xl: 32,
     xxl: 48,
   },
+  // Uber type scale: 11/13/15/17/20/24/32
   fontSize: {
     xs: 11,
     sm: 13,
@@ -23,12 +24,18 @@ const theme = {
     medium: '500',
     semibold: '600',
     bold: '700',
+    black: '900',
   },
   borderRadius: {
-    sm: 6,
-    md: 12,
-    lg: 20,
-    xl: 28,
+    btn: 4,
+    card: 12,
+    sheet: 16,
+    chip: 999,
+    // Legacy aliases used in existing components
+    sm: 4,
+    md: 8,
+    lg: 12,
+    xl: 16,
     full: 9999,
   },
   shadow: {

@@ -1,15 +1,23 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { firebaseAuth, firebaseFirestore, COLLECTIONS } from '../../services/firebase';
+import { serializeFirestoreData } from '../../utils/formatters';
 
 export const loginUser = createAsyncThunk(
   'auth/loginUser',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
       const uid = userCredential.user.uid;
-      const profileDoc = await firestore().collection('users').doc(uid).get();
-      return { uid, email: userCredential.user.email, ...profileDoc.data() };
+      const profileRef = doc(firebaseFirestore, COLLECTIONS.USERS, uid);
+      const profileSnap = await getDoc(profileRef);
+      const profile = profileSnap.exists() ? serializeFirestoreData(profileSnap.data()) : {};
+      return { uid, email: userCredential.user.email, ...profile };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -20,12 +28,13 @@ export const registerUser = createAsyncThunk(
   'auth/registerUser',
   async ({ email, password, profileData }, { rejectWithValue }) => {
     try {
-      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+      const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       const uid = userCredential.user.uid;
-      await firestore().collection('users').doc(uid).set({
+      await setDoc(doc(firebaseFirestore, COLLECTIONS.USERS, uid), {
         ...profileData,
-        createdAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
       });
+      // profileData comes from local form — already plain objects, safe to store directly
       return { uid, email, ...profileData };
     } catch (error) {
       return rejectWithValue(error.message);
@@ -37,7 +46,7 @@ export const logoutUser = createAsyncThunk(
   'auth/logoutUser',
   async (_, { rejectWithValue }) => {
     try {
-      await auth().signOut();
+      await signOut(firebaseAuth);
     } catch (error) {
       return rejectWithValue(error.message);
     }

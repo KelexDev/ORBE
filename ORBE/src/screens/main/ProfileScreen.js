@@ -1,13 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useContext } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Switch,
   Image,
   Alert,
 } from 'react-native';
+import { ThemeContext } from '../../context/ThemeContext';
 import { Picker } from '@react-native-picker/picker';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useDispatch, useSelector } from 'react-redux';
@@ -34,6 +36,9 @@ const ProfileScreen = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { profile, loading } = useSelector((state) => state.user);
+
+  // useContext — reads dark-mode preference from the shared ThemeContext
+  const { isDark, toggle: toggleDarkMode } = useContext(ThemeContext);
 
   const [photo, setPhoto] = useState(profile?.photoUri || null);
   const [fullName, setFullName] = useState(profile?.fullName || '');
@@ -208,6 +213,17 @@ const ProfileScreen = () => {
         ) : null}
       </View>
 
+      {/* Dark mode toggle — demonstrates useContext(ThemeContext) */}
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>Dark Mode</Text>
+        <Switch
+          value={isDark}
+          onValueChange={toggleDarkMode}
+          trackColor={{ false: colors.border, true: colors.accent }}
+          thumbColor={colors.white}
+        />
+      </View>
+
       {loading ? <LoadingSpinner message="Saving..." size="small" /> : null}
 
       <Button
@@ -325,6 +341,20 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: colors.error,
     marginTop: theme.spacing.xs,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  toggleLabel: {
+    fontSize: theme.fontSize.md,
+    color: colors.text,
+    fontWeight: theme.fontWeight.medium,
   },
   saveBtn: {
     marginTop: theme.spacing.md,

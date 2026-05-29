@@ -44,3 +44,20 @@ export const capitalizeFirst = (str) => {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 };
+
+// Converts Firestore Timestamp objects to ISO strings so Redux stays serializable.
+export const serializeFirestoreData = (data) => {
+  if (!data || typeof data !== 'object') return data;
+  if (Array.isArray(data)) return data.map(serializeFirestoreData);
+  const result = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value && typeof value.toDate === 'function') {
+      result[key] = value.toDate().toISOString();
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      result[key] = serializeFirestoreData(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};

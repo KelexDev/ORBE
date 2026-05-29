@@ -1,74 +1,71 @@
-import firestore from '@react-native-firebase/firestore';
-import { COLLECTIONS } from './firebase';
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { firebaseFirestore, COLLECTIONS } from './firebase';
 import { RIDE_STATUS } from '../constants/vehicleTypes';
 
 export const requestRideService = async (rideData) => {
-  const rideRef = await firestore().collection(COLLECTIONS.RIDES).add({
+  const ridesRef = collection(firebaseFirestore, COLLECTIONS.RIDES);
+  const rideRef = await addDoc(ridesRef, {
     ...rideData,
     status: RIDE_STATUS.SEARCHING,
-    createdAt: firestore.FieldValue.serverTimestamp(),
+    createdAt: serverTimestamp(),
   });
-
-  const doc = await rideRef.get();
-  return { id: doc.id, ...doc.data() };
+  return { id: rideRef.id, ...rideData, status: RIDE_STATUS.SEARCHING };
 };
 
 export const cancelRideService = async (rideId) => {
-  await firestore()
-    .collection(COLLECTIONS.RIDES)
-    .doc(rideId)
-    .update({ status: RIDE_STATUS.CANCELLED });
+  const rideRef = doc(firebaseFirestore, COLLECTIONS.RIDES, rideId);
+  await updateDoc(rideRef, { status: RIDE_STATUS.CANCELLED });
 };
 
 export const updateRideStatusService = async (rideId, status) => {
-  await firestore().collection(COLLECTIONS.RIDES).doc(rideId).update({ status });
+  const rideRef = doc(firebaseFirestore, COLLECTIONS.RIDES, rideId);
+  await updateDoc(rideRef, { status });
 };
 
 export const completeRideService = async (rideId, paymentData) => {
-  await firestore()
-    .collection(COLLECTIONS.RIDES)
-    .doc(rideId)
-    .update({
-      status: RIDE_STATUS.COMPLETED,
-      payment: paymentData,
-      completedAt: firestore.FieldValue.serverTimestamp(),
-    });
+  const rideRef = doc(firebaseFirestore, COLLECTIONS.RIDES, rideId);
+  await updateDoc(rideRef, {
+    status: RIDE_STATUS.COMPLETED,
+    payment: paymentData,
+    completedAt: serverTimestamp(),
+  });
 };
 
 export const listenToDriverLocation = (rideId, onUpdate) => {
-  return firestore()
-    .collection(COLLECTIONS.RIDES)
-    .doc(rideId)
-    .onSnapshot((doc) => {
-      if (doc.exists) {
-        const data = doc.data();
-        if (data.driverLocation) {
-          onUpdate(data.driverLocation);
-        }
+  const rideRef = doc(firebaseFirestore, COLLECTIONS.RIDES, rideId);
+  return onSnapshot(rideRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.driverLocation) {
+        onUpdate(data.driverLocation);
       }
-    });
+    }
+  });
 };
 
 export const listenToRideStatus = (rideId, onUpdate) => {
-  return firestore()
-    .collection(COLLECTIONS.RIDES)
-    .doc(rideId)
-    .onSnapshot((doc) => {
-      if (doc.exists) {
-        const data = doc.data();
-        onUpdate(data.status);
-      }
-    });
+  const rideRef = doc(firebaseFirestore, COLLECTIONS.RIDES, rideId);
+  return onSnapshot(rideRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      onUpdate(data.status);
+    }
+  });
 };
 
 export const savePaymentRecord = async (rideId, paymentData) => {
-  await firestore()
-    .collection(COLLECTIONS.RIDES)
-    .doc(rideId)
-    .update({
-      payment: {
-        ...paymentData,
-        paidAt: firestore.FieldValue.serverTimestamp(),
-      },
-    });
+  const rideRef = doc(firebaseFirestore, COLLECTIONS.RIDES, rideId);
+  await updateDoc(rideRef, {
+    payment: {
+      ...paymentData,
+      paidAt: serverTimestamp(),
+    },
+  });
 };

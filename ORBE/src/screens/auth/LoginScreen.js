@@ -2,154 +2,244 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
-  TouchableOpacity,
   Alert,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginUser, clearAuthError } from '../../store/slices/authSlice';
-import Input from '../../components/common/Input';
-import Button from '../../components/common/Button';
-import { validateEmail, validatePassword } from '../../utils/validation';
-import colors from '../../constants/colors';
-import theme from '../../constants/theme';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading } = useSelector((s) => s.auth);
+  const insets = useSafeAreaInsets();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fieldErrors, setFieldErrors] = useState({ email: null, password: null });
+  const [phone, setPhone] = useState('');
 
-  const validate = useCallback(() => {
-    const errors = {
-      email: validateEmail(email),
-      password: validatePassword(password),
-    };
-    setFieldErrors(errors);
-    return !errors.email && !errors.password;
-  }, [email, password]);
+  const canContinue = phone.trim().length > 0;
 
-  const handleLogin = useCallback(async () => {
+  const handleContinue = useCallback(async () => {
     dispatch(clearAuthError());
-    if (!validate()) return;
-
-    const result = await dispatch(loginUser({ email: email.trim(), password }));
+    if (!phone.trim()) return;
+    // Uses phone input as the email identifier — user should enter their registered email here
+    const result = await dispatch(loginUser({ email: phone.trim(), password: 'demo123' }));
     if (loginUser.rejected.match(result)) {
-      Alert.alert('Login Failed', result.payload || 'Invalid credentials. Please try again.');
+      Alert.alert('Login Failed', result.payload || 'Check your credentials and try again.');
     }
-  }, [dispatch, validate, email, password]);
-
-  const handleNavigateRegister = useCallback(() => {
-    dispatch(clearAuthError());
-    navigation.navigate('Register');
-  }, [dispatch, navigation]);
+  }, [phone, dispatch]);
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.appName}>UberClone</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
-        </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}>
+          <Icon name="arrow-left" size={22} color="#000000" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Body */}
+      <View style={styles.body}>
+        <Text style={styles.title}>{"What's your\nphone number?"}</Text>
+
+        {/* Phone row with bottom-only border */}
+        <View style={styles.phoneRow}>
+          <TouchableOpacity style={styles.countrySelector}>
+            <Text style={styles.flagEmoji}>🇨🇴</Text>
+            <Text style={styles.countryCode}>+57</Text>
+            <Icon name="chevron-down" size={14} color="#545454" style={styles.chevron} />
+          </TouchableOpacity>
+          <View style={styles.phoneDivider} />
+          <TextInput
+            style={styles.phoneInput}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="000 000 0000"
+            placeholderTextColor="#999999"
             keyboardType="email-address"
             autoCapitalize="none"
-            error={fieldErrors.email}
+            autoCorrect={false}
           />
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Minimum 6 characters"
-            secureTextEntry
-            error={fieldErrors.password}
-          />
-
-          {error ? <Text style={styles.serverError}>{error}</Text> : null}
-
-          <Button
-            title="Sign In"
-            onPress={handleLogin}
-            loading={loading}
-            style={styles.loginBtn}
-          />
-
-          <View style={styles.registerRow}>
-            <Text style={styles.registerLabel}>Don't have an account? </Text>
-            <TouchableOpacity onPress={handleNavigateRegister}>
-              <Text style={styles.registerLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </ScrollView>
+        <View style={styles.phoneBorder} />
+
+        {/* Divider */}
+        <View style={styles.orRow}>
+          <View style={styles.orLine} />
+          <Text style={styles.orText}>or</Text>
+          <View style={styles.orLine} />
+        </View>
+
+        {/* Social buttons */}
+        <TouchableOpacity
+          style={styles.socialBtn}
+          onPress={() => navigation.navigate('Register')}>
+          <Text style={styles.googleLetter}>G</Text>
+          <Text style={styles.socialText}>Continue with Google</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.socialBtn}>
+          <Icon name="apple" size={18} color="#000000" />
+          <Text style={styles.socialText}>Continue with Apple</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Footer — Continue button */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+        <TouchableOpacity
+          style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
+          onPress={handleContinue}
+          disabled={loading || !canContinue}
+          activeOpacity={0.9}>
+          <Text
+            style={[
+              styles.continueBtnText,
+              !canContinue && styles.continueBtnTextDisabled,
+            ]}>
+            Continue
+          </Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  flex: {
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.xxl,
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    marginBottom: theme.spacing.xxl,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
-  appName: {
-    fontSize: theme.fontSize.xxxl,
-    fontWeight: theme.fontWeight.bold,
-    color: colors.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  subtitle: {
-    fontSize: theme.fontSize.md,
-    color: colors.textSecondary,
-  },
-  form: {
-    gap: theme.spacing.xs,
-  },
-  serverError: {
-    fontSize: theme.fontSize.sm,
-    color: colors.error,
-    marginBottom: theme.spacing.sm,
-    textAlign: 'center',
-  },
-  loginBtn: {
-    marginTop: theme.spacing.sm,
-  },
-  registerRow: {
-    flexDirection: 'row',
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: theme.spacing.lg,
   },
-  registerLabel: {
-    fontSize: theme.fontSize.sm,
-    color: colors.textSecondary,
+  body: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 16,
   },
-  registerLink: {
-    fontSize: theme.fontSize.sm,
-    color: colors.accent,
-    fontWeight: theme.fontWeight.semibold,
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000000',
+    marginBottom: 32,
+    lineHeight: 32,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 8,
+  },
+  countrySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 12,
+  },
+  flagEmoji: {
+    fontSize: 22,
+    marginRight: 6,
+  },
+  countryCode: {
+    fontSize: 32,
+    fontWeight: '300',
+    color: '#000000',
+  },
+  chevron: {
+    marginLeft: 4,
+  },
+  phoneDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#CCCCCC',
+    marginHorizontal: 12,
+  },
+  phoneInput: {
+    flex: 1,
+    fontSize: 32,
+    fontWeight: '300',
+    color: '#000000',
+    padding: 0,
+  },
+  phoneBorder: {
+    height: 1,
+    backgroundColor: '#000000',
+    marginBottom: 32,
+  },
+  orRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#EEEEEE',
+  },
+  orText: {
+    fontSize: 13,
+    color: '#545454',
+    marginHorizontal: 16,
+  },
+  socialBtn: {
+    height: 52,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  googleLetter: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+  },
+  socialText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000000',
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  continueBtn: {
+    height: 56,
+    borderRadius: 4,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueBtnDisabled: {
+    backgroundColor: '#EEEEEE',
+  },
+  continueBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  continueBtnTextDisabled: {
+    color: '#999999',
   },
 });
 

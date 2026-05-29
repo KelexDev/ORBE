@@ -17,14 +17,17 @@ const RideMap = ({
 
   useEffect(() => {
     if (!mapRef.current) return;
-    if (origin && destination) {
-      mapRef.current.fitToCoordinates([origin, destination], {
-        edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-        animated: true,
-      });
-    } else if (origin) {
-      mapRef.current.animateToRegion({ ...origin, ...INITIAL_DELTA }, 500);
-    }
+    const timer = setTimeout(() => {
+      if (origin && destination) {
+        mapRef.current.fitToCoordinates([origin, destination], {
+          edgePadding: { top: 100, right: 80, bottom: 100, left: 80 },
+          animated: true,
+        });
+      } else if (origin) {
+        mapRef.current.animateToRegion({ ...origin, ...INITIAL_DELTA }, 600);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
   }, [origin, destination]);
 
   const initialRegion = origin
@@ -38,8 +41,11 @@ const RideMap = ({
         provider={PROVIDER_GOOGLE}
         style={StyleSheet.absoluteFillObject}
         initialRegion={initialRegion}
-        showsUserLocation={false}
-        showsMyLocationButton={false}>
+        showsUserLocation
+        showsMyLocationButton
+        loadingEnabled
+        loadingIndicatorColor={colors.accent}
+        loadingBackgroundColor={colors.mapFallback}>
         {origin ? (
           <Marker coordinate={origin} title="Pickup" pinColor={colors.success} />
         ) : null}
@@ -47,11 +53,7 @@ const RideMap = ({
           <Marker coordinate={destination} title="Destination" pinColor={colors.accent} />
         ) : null}
         {driverLocation ? (
-          <Marker
-            coordinate={driverLocation}
-            title="Driver"
-            pinColor={colors.primary}
-          />
+          <Marker coordinate={driverLocation} title="Driver" pinColor={colors.primary} />
         ) : null}
         {routeCoordinates.length > 1 ? (
           <Polyline

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setOrigin,
@@ -6,21 +6,28 @@ import {
   setSelectedVehicle,
   setFareEstimate,
   setRouteData,
-  updateDriverLocation,
-  updateRideStatus,
   requestRide,
   cancelRide,
   clearRide,
 } from '../store/slices/rideSlice';
 import { getDirections, estimateAllFares } from '../services/googleMapsService';
-import { listenToDriverLocation, listenToRideStatus } from '../services/rideService';
 
 const useRide = () => {
   const dispatch = useDispatch();
-  const rideState = useSelector((state) => state.ride);
-  const authState = useSelector((state) => state.auth);
-  const driverUnsubscribeRef = useRef(null);
-  const statusUnsubscribeRef = useRef(null);
+
+  const origin = useSelector((state) => state.ride.origin);
+  const destination = useSelector((state) => state.ride.destination);
+  const selectedVehicle = useSelector((state) => state.ride.selectedVehicle);
+  const fareEstimate = useSelector((state) => state.ride.fareEstimate);
+  const routeCoordinates = useSelector((state) => state.ride.routeCoordinates);
+  const distanceMeters = useSelector((state) => state.ride.distanceMeters);
+  const durationSeconds = useSelector((state) => state.ride.durationSeconds);
+  const currentRide = useSelector((state) => state.ride.currentRide);
+  const rideStatus = useSelector((state) => state.ride.rideStatus);
+  const driverLocation = useSelector((state) => state.ride.driverLocation);
+  const loading = useSelector((state) => state.ride.loading);
+  const error = useSelector((state) => state.ride.error);
+  const userId = useSelector((state) => state.auth.user?.uid);
 
   const selectOrigin = useCallback(
     (coords) => dispatch(setOrigin(coords)),
@@ -37,73 +44,67 @@ const useRide = () => {
     [dispatch],
   );
 
-  const fetchRoute = useCallback(async () => {
-    const { origin, destination } = rideState;
-    if (!origin || !destination) return;
-
-    try {
-      const routeData = await getDirections(origin, destination);
-      dispatch(setRouteData({
-        coordinates: routeData.coordinates,
-        distanceMeters: routeData.distanceMeters,
-        durationSeconds: routeData.durationSeconds,
-      }));
-
-      const fares = estimateAllFares(routeData.distanceMeters, routeData.durationSeconds);
-      dispatch(setFareEstimate(fares));
-    } catch (err) {
-      console.error('Failed to fetch route:', err.message);
-    }
-  }, [dispatch, rideState]);
+  // Receives origin and destination as params to avoid stale closure / infinite loop
+  const fetchRoute = useCallback(
+    async (originCoords, destinationCoords) => {
+      if (!originCoords || !destinationCoords) return;
+      try {
+        const routeData = await getDirections(originCoords, destinationCoords);
+        dispatch(
+          setRouteData({
+            coordinates: routeData.coordinates,
+            distanceMeters: routeData.distanceMeters,
+            durationSeconds: routeData.durationSeconds,
+          }),
+        );
+        const fares = estimateAllFares(routeData.distanceMeters, routeData.durationSeconds);
+        dispatch(setFareEstimate(fares));
+      } catch (err) {
+        console.error('Route fetch failed:', err.message);
+      }
+    },
+    [dispatch],
+  );
 
   const submitRideRequest = useCallback(async () => {
-    const { origin, destination, selectedVehicle, fareEstimate, distanceMeters, durationSeconds } = rideState;
-    const userId = authState.user?.uid;
-
     const selectedFare = fareEstimate?.find((f) => f.vehicleId === selectedVehicle);
-
-    await dispatch(requestRide({
-      userId,
-      origin,
-      destination,
-      vehicleType: selectedVehicle,
-      fare: selectedFare?.fare,
-      distanceMeters,
-      durationSeconds,
-    }));
-  }, [dispatch, rideState, authState]);
+    const result = await dispatch(
+      requestRide({
+        userId,
+        origin,
+        destination,
+        vehicleType: selectedVehicle,
+        fare: selectedFare?.fare ?? 0,
+        distanceMeters,
+        durationSeconds,
+      }),
+    );
+    if (requestRide.rejected.match(result)) {
+      throw new Error(result.payload || 'Failed to request ride.');
+    }
+  }, [dispatch, userId, origin, destination, selectedVehicle, fareEstimate, distanceMeters, durationSeconds]);
 
   const cancelCurrentRide = useCallback(async () => {
-    const { currentRide } = rideState;
     if (currentRide?.id) {
       await dispatch(cancelRide(currentRide.id));
     }
-  }, [dispatch, rideState]);
+  }, [dispatch, currentRide?.id]);
 
-  const resetRide = useCallback(() => {
-    dispatch(clearRide());
-  }, [dispatch]);
-
-  useEffect(() => {
-    const { currentRide } = rideState;
-    if (!currentRide?.id) return;
-
-    driverUnsubscribeRef.current = listenToDriverLocation(currentRide.id, (coords) => {
-      dispatch(updateDriverLocation(coords));
-    });
-
-    statusUnsubscribeRef.current = listenToRideStatus(currentRide.id, (status) => {
-      dispatch(updateRideStatus(status));
-    });
-
-    return () => {
-      driverUnsubscribeRef.current?.();
-      statusUnsubscribeRef.current?.();
-    };
-  }, [dispatch, rideState.currentRide?.id]);
+  const resetRide = useCallback(() => dispatch(clearRide()), [dispatch]);
 
   return {
-    ...rideState,
+    origin,
+    destination,
+    selectedVehicle,
+    fareEstimate,
+    routeCoordinates,
+    distanceMeters,
+    durationSeconds,
+    currentRide,
+    rideStatus,
+    driverLocation,
+    loading,
+    error,
     selectOrigin,
     selectDestination,
     selectVehicle,

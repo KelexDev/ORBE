@@ -12,8 +12,18 @@ const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['auth/loginUser/fulfilled', 'user/fetchRideHistory/fulfilled'],
-        ignoredPaths: ['ride.currentRide.createdAt', 'user.rideHistory'],
+        ignoredActions: [
+          'auth/loginUser/fulfilled',
+          'auth/registerUser/fulfilled',
+          'user/fetchProfile/fulfilled',
+          'user/fetchRideHistory/fulfilled',
+        ],
+        ignoredPaths: [
+          'auth.user',
+          'user.profile',
+          'user.rideHistory',
+          'ride.currentRide',
+        ],
       },
     }),
 });
